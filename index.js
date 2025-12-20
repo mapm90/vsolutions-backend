@@ -1,3 +1,5 @@
+require("dotenv").config(); // <- carga las variables del .env
+
 const express = require("express");
 const cors = require("cors");
 const clientPromise = require("./mongodb");

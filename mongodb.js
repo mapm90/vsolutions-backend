@@ -1,17 +1,18 @@
-import { MongoClient } from "mongodb";
+// mongodb.js
+const { MongoClient } = require("mongodb");
 
 const uri = process.env.MONGODB_URI;
 const options = {};
 
+if (!uri) {
+  throw new Error("Falta la variable MONGODB_URI en .env");
+}
+
 let client;
 let clientPromise;
 
-if (!process.env.MONGODB_URI) {
-  throw new Error("Falta la variable MONGODB_URI");
-}
-
 if (process.env.NODE_ENV === "development") {
-  // Evitar múltiples conexiones en desarrollo
+  // Evita múltiples conexiones en desarrollo
   if (!global._mongoClientPromise) {
     client = new MongoClient(uri, options);
     global._mongoClientPromise = client.connect();
@@ -22,4 +23,4 @@ if (process.env.NODE_ENV === "development") {
   clientPromise = client.connect();
 }
 
-export default clientPromise;
+module.exports = clientPromise;
