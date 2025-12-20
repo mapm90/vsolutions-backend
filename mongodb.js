@@ -1,27 +1,25 @@
-// mongodb.js
-require('dotenv').config();
-const { MongoClient } = require('mongodb');
+import { MongoClient } from "mongodb";
 
 const uri = process.env.MONGODB_URI;
-
-if (!uri) {
-  throw new Error('Debes definir MONGODB_URI en tu .env');
-}
+const options = {};
 
 let client;
 let clientPromise;
 
-if (!global._mongoClientPromise) {
-  // Opciones modernas de conexión para Node >= 18
-  const options = {
-    // estas opciones aseguran compatibilidad TLS y manejo de topología
-    serverApi: { version: '1' }, 
-  };
-
-  client = new MongoClient(uri, options);
-  global._mongoClientPromise = client.connect();
+if (!process.env.MONGODB_URI) {
+  throw new Error("Falta la variable MONGODB_URI");
 }
 
-clientPromise = global._mongoClientPromise;
+if (process.env.NODE_ENV === "development") {
+  // Evitar múltiples conexiones en desarrollo
+  if (!global._mongoClientPromise) {
+    client = new MongoClient(uri, options);
+    global._mongoClientPromise = client.connect();
+  }
+  clientPromise = global._mongoClientPromise;
+} else {
+  client = new MongoClient(uri, options);
+  clientPromise = client.connect();
+}
 
-module.exports = clientPromise;
+export default clientPromise;
