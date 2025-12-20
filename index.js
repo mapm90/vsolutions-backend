@@ -13,6 +13,22 @@ app.use(
 );
 app.use(express.json());
 
+// RUTA GET / Tips
+app.get("/tipss", async (req, res) => {
+  try {
+    const client = await clientPromise;
+    const db = client.db(process.env.MONGODB_DB);
+    const collection = db.collection("tips");
+    const data = await collection.find({}).toArray();
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("Error al obtener tips:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error interno del servidor" });
+  }
+});
+
 // RUTA GET / comentarios
 app.get("/comentss", async (req, res) => {
   try {
