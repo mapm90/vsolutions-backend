@@ -10,12 +10,24 @@ const app = express();
 const PORT = 4000;
 
 // ----------------- Middlewares -----------------
+const allowedOrigins = [
+  "http://localhost:8080",
+  "https://vsolutions-frontend.vercel.app",
+];
+
 app.use(
   cors({
-    origin: "*", // Cambia esto a tu frontend en producción
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("No permitido por CORS"));
+      }
+    },
     credentials: true,
   })
 );
+
 app.use(express.json());
 app.use(cookieParser());
 
@@ -45,7 +57,7 @@ app.post("/auth/login", async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      sameSite: "strict",
+      sameSite: "lax",
       secure: false,
     });
     res.json({ success: true });
@@ -69,10 +81,6 @@ app.get("/tipss", async (req, res) => {
       .status(500)
       .json({ success: false, message: "Error interno del servidor" });
   }
-});
-
-app.get("/health", (req, res) => {
-  res.json({ ok: true });
 });
 
 app.get("/comentss", async (req, res) => {
