@@ -71,6 +71,10 @@ app.get("/tipss", async (req, res) => {
   }
 });
 
+app.get("/health", (req, res) => {
+  res.json({ ok: true });
+});
+
 app.get("/comentss", async (req, res) => {
   try {
     const client = await clientPromise;
