@@ -56,7 +56,7 @@ app.post("/auth/login", async (req, res) => {
 });
 
 // ----------------- Rutas públicas -----------------
-app.get("/tipsss", async (req, res) => {
+app.get("/tipss", async (req, res) => {
   try {
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB);
