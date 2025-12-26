@@ -56,7 +56,7 @@ app.post("/auth/login", async (req, res) => {
 });
 
 // ----------------- Rutas públicas -----------------
-app.get("/tipss", async (req, res) => {
+app.get("/tipsss", async (req, res) => {
   try {
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB);
@@ -161,12 +161,10 @@ app.post("/comentario", async (req, res) => {
     const result = await db
       .collection("comentarios")
       .insertOne(nuevoComentario);
-    res
-      .status(201)
-      .json({
-        message: "Comentario enviado",
-        id: result.insertedId.toString(),
-      });
+    res.status(201).json({
+      message: "Comentario enviado",
+      id: result.insertedId.toString(),
+    });
   } catch (error) {
     console.error(error);
     res
