@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     try {
       const client = await clientPromise;
       const db = client.db(process.env.MONGODB_DB);
-      const data = await db.collection("tipss").find({}).toArray();
+      const data = await db.collection("tips").find({}).toArray();
       res.status(200).json({ success: true, data });
     } catch (error) {
       res
