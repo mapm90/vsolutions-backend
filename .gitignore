@@ -1,8 +1,11 @@
-# Ignorar archivo de variables de entorno
-.env
-
 # Node modules
 node_modules/
 
 # Logs
 *.log
+
+# Next.js build
+.next/
+
+# Env files
+.env
