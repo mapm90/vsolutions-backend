@@ -9,3 +9,7 @@ node_modules/
 
 # Env files
 .env
+
+node_modules/
+
+.env.local

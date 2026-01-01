@@ -1,6 +1,17 @@
 import clientPromise from "../../lib/mongodb";
 
 export default async function handler(req, res) {
+  // Cabeceras CORS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  // Preflight (OPTIONS)
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  // POST real
   if (req.method === "POST") {
     const { nombre, comentario } = req.body;
 
@@ -30,7 +41,8 @@ export default async function handler(req, res) {
         error: error.message,
       });
     }
-  } else {
-    res.status(405).json({ message: "Método no permitido" });
   }
+
+  // Otros métodos
+  res.status(405).json({ message: "Método no permitido" });
 }
