@@ -8,15 +8,16 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "14.x",
-    "react": "18.x",
-    "react-dom": "18.x",
-    "mongodb": "^7.0.0",
+    "@xenova/transformers": "^2.17.2",
     "bcryptjs": "^3.0.3",
-    "jsonwebtoken": "^9.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.3"
+    "dotenv": "^17.2.3",
+    "jsonwebtoken": "^9.0.3",
+    "mongodb": "^7.0.0",
+    "next": "^16.1.6",
+    "react": "18.x",
+    "react-dom": "18.x"
   },
   "engines": {
     "node": "20.x"
