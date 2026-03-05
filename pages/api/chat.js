@@ -1,21 +1,4 @@
 import clientPromise from "../../lib/mongodb";
-import { pipeline } from "@xenova/transformers";
-
-let extractor = null;
-
-// 🔥 Inicializa modelo una sola vez
-async function getEmbedding(text) {
-  if (!extractor) {
-    extractor = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
-  }
-
-  const output = await extractor(text, {
-    pooling: "mean",
-    normalize: true,
-  });
-
-  return Array.from(output.data);
-}
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -42,28 +25,22 @@ export default async function handler(req, res) {
 
     const userMessage = messages[messages.length - 1]?.content || "";
 
-    // 🧠 1️⃣ Generar embedding LOCAL
-    const queryVector = await getEmbedding(userMessage);
-
-    // 🔎 2️⃣ Buscar por similaridad en Mongo
+    // 🔎 Búsqueda por regex dentro del array pclave
     const docs = await db
       .collection("knowledge")
-      .aggregate([
-        {
-          $vectorSearch: {
-            index: "vector_index",
-            queryVector: queryVector,
-            path: "embedding",
-            numCandidates: 100,
-            limit: 5,
+      .find({
+        pclave: {
+          $elemMatch: {
+            $regex: userMessage,
+            $options: "i",
           },
         },
-      ])
+      })
       .toArray();
 
     const context = docs.map((d) => d.text).join("\n");
 
-    // 🤖 3️⃣ Enviar contexto al modelo
+    // 🤖 Enviar contexto a OpenRouter
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -78,7 +55,7 @@ export default async function handler(req, res) {
             {
               role: "system",
               content:
-                "Eres Clara, asistente de servicios técnicos. Responde solo usando el contexto proporcionado. Si no está en el contexto, di que no tienes esa información.",
+                "Eres Clara, asistente de servicios técnicos. Usa solo la información del contexto. Si no está, di que no lo sabes.",
             },
             {
               role: "system",
