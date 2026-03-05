@@ -115,7 +115,9 @@ export default async function handler(req, res) {
     const data2 = await response.json();
 
     return res.status(200).json({
-      reply: data2.choices?.[0]?.message?.content || "Sin respuestas",
+      reply:
+        data2.choices?.[0]?.message?.content ||
+        db.knowledge.find({ pclave: "como te llamas" }),
     });
   } catch (error) {
     console.error(error);
