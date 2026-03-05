@@ -30,7 +30,7 @@ export default async function handler(req, res) {
             {
               role: "system",
               content:
-                "te llamas Carmen y puedes decir tu nombre, responde siempre en español, con respuestas cortas y claras, y si no sabes la respuesta di que no lo sabes",
+                "te llamas Carmen y puedes decir tu nombre, responde siempre en español, con respuestas cortas y claras, y si no sabes la respuesta di que no lo sabes y en todo momento puedes salir a internet a buscar cosas",
             },
             ...messages,
           ],
