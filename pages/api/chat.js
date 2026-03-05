@@ -1,4 +1,21 @@
 import clientPromise from "../../lib/mongodb";
+import { pipeline } from "@xenova/transformers";
+
+let extractor = null;
+
+// 🔥 Inicializa modelo una sola vez
+async function getEmbedding(text) {
+  if (!extractor) {
+    extractor = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
+  }
+
+  const output = await extractor(text, {
+    pooling: "mean",
+    normalize: true,
+  });
+
+  return Array.from(output.data);
+}
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -6,21 +23,18 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
   if (req.method !== "POST") {
-    res.status(405).end();
-    return;
+    return res.status(405).end();
   }
 
   try {
     const { messages } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
-      res.status(400).json({ message: "Datos inválidos" });
-      return;
+      return res.status(400).json({ message: "Datos inválidos" });
     }
 
     const client = await clientPromise;
@@ -28,17 +42,28 @@ export default async function handler(req, res) {
 
     const userMessage = messages[messages.length - 1]?.content || "";
 
-    // 🔎 búsqueda por palabra (regex)
+    // 🧠 1️⃣ Generar embedding LOCAL
+    const queryVector = await getEmbedding(userMessage);
+
+    // 🔎 2️⃣ Buscar por similaridad en Mongo
     const docs = await db
       .collection("knowledge")
-      .find({
-        text: { $regex: userMessage, $options: "i" },
-      })
+      .aggregate([
+        {
+          $vectorSearch: {
+            index: "vector_index",
+            queryVector: queryVector,
+            path: "embedding",
+            numCandidates: 100,
+            limit: 5,
+          },
+        },
+      ])
       .toArray();
 
     const context = docs.map((d) => d.text).join("\n");
 
-    // 🤖 IA responde con contexto (si hay)
+    // 🤖 3️⃣ Enviar contexto al modelo
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -53,8 +78,11 @@ export default async function handler(req, res) {
             {
               role: "system",
               content:
-                "Eres un asistente llamado Clara. Eres  la ventanilla unica de mi pagina de servicios, estas en un entorno que busca en una base de datos de la empresa todo lo que nececitas saber,   no hables de temas fuera del contexto, no inventes nada si no lo encuentras en la bse de datos, " +
-                context,
+                "Eres Clara, asistente de servicios técnicos. Responde solo usando el contexto proporcionado. Si no está en el contexto, di que no tienes esa información.",
+            },
+            {
+              role: "system",
+              content: `Contexto:\n${context}`,
             },
             ...messages,
           ],
@@ -64,11 +92,11 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    res.status(200).json({
+    return res.status(200).json({
       reply: data.choices?.[0]?.message?.content || "Sin respuesta",
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: "Error interno",
       error: error.message,
     });
