@@ -1,4 +1,3 @@
-// pages/api/chat.js
 import clientPromise from "../../lib/mongodb";
 
 export default async function handler(req, res) {
@@ -17,9 +16,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, vector } = req.body;
+    const { messages } = req.body;
 
-    if (!messages || !Array.isArray(messages) || !vector) {
+    if (!messages || !Array.isArray(messages)) {
       res.status(400).json({ message: "Datos inválidos" });
       return;
     }
@@ -27,27 +26,19 @@ export default async function handler(req, res) {
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB);
 
-    // 🔎 búsqueda semántica
+    const userMessage = messages[messages.length - 1]?.content || "";
+
+    // 🔎 búsqueda por palabra (regex)
     const docs = await db
       .collection("knowledge")
-      .aggregate([
-        {
-          $search: {
-            index: "vector_index",
-            knnBeta: {
-              vector: vector,
-              path: "embedding",
-              k: 5,
-            },
-          },
-        },
-      ])
+      .find({
+        text: { $regex: userMessage, $options: "i" },
+      })
       .toArray();
 
-    // 📄 contexto
     const context = docs.map((d) => d.text).join("\n");
 
-    // 🤖 llamada a IA con contexto
+    // 🤖 IA responde con contexto (si hay)
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -62,7 +53,7 @@ export default async function handler(req, res) {
             {
               role: "system",
               content:
-                "Eres asistente del negocio. Usa este contexto para responder: " +
+                "Eres asistente del negocio. Usa este contexto si existe: " +
                 context,
             },
             ...messages,
