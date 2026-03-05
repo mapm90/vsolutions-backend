@@ -25,7 +25,7 @@ export default async function handler(req, res) {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-r1:free",
+          model: "openai/gpt-4o-mini",
           messages: [
             {
               role: "system",
