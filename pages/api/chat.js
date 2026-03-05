@@ -25,7 +25,7 @@ export default async function handler(req, res) {
 
     const userMessage = messages[messages.length - 1]?.content || "";
 
-    // 🔧 1️⃣ CORREGIR ORTOGRAFÍA CON OPENROUTER
+    // 🔧 1️⃣ CORREGIR ORTOGRAFÍA
     let corrected = userMessage;
 
     try {
@@ -60,11 +60,12 @@ export default async function handler(req, res) {
       console.error("error corrigiendo:", e);
     }
 
-    // 🔎 2️⃣ BUSCAR EN pclave (con texto corregido)
+    // 🔎 2️⃣ BUSCAR EN pclave (keyword)
     const term = corrected
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
+      .toLowerCase()
+      .trim();
 
     const docs = await db
       .collection("knowledge")
@@ -73,13 +74,13 @@ export default async function handler(req, res) {
       })
       .toArray();
 
-    console.log("término original:", userMessage);
-    console.log("término corregido:", term);
+    console.log("term:", term);
     console.log("docs:", docs);
 
-    const context = docs.map((d) => d.text).join("\n");
+    // 📌 3️⃣ GENERAR CONTEXTO (si hay)
+    const context = docs.length > 0 ? docs.map((d) => d.text).join("\n") : "";
 
-    // 🤖 3️⃣ RESPONDER CON CONTEXTO
+    // 🤖 4️⃣ RESPUESTA
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -93,13 +94,18 @@ export default async function handler(req, res) {
           messages: [
             {
               role: "system",
-              content:
-                "Eres Clara, asistente de servicios técnicos. Usa solo la información del contexto. Si no está, di que no lo sabes.",
+              content: "Eres Clara, asistente de servicios técnicos.",
             },
-            {
-              role: "system",
-              content: `Contexto:\n${context}`,
-            },
+            context
+              ? {
+                  role: "system",
+                  content: `Contexto:\n${context}`,
+                }
+              : {
+                  role: "system",
+                  content:
+                    "No tengo información específica en la base de datos, responde de forma general si puedes.",
+                },
             ...messages,
           ],
         }),
