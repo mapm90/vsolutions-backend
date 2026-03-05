@@ -25,7 +25,7 @@ export default async function handler(req, res) {
 
     const userMessage = messages[messages.length - 1]?.content || "";
 
-    // 🔧 1️⃣ CORREGIR ORTOGRAFÍA
+    // 🔧 1️⃣ CORREGIR ORTOGRAFÍA CON OPENROUTER
     let corrected = userMessage;
 
     try {
@@ -55,37 +55,31 @@ export default async function handler(req, res) {
       );
 
       const data = await correction.json();
-      corrected = data?.choices?.[0]?.message?.content?.trim() || userMessage;
+      corrected = data.choices?.[0]?.message?.content?.trim() || userMessage;
     } catch (e) {
       console.error("error corrigiendo:", e);
     }
 
-    // 🔎 2️⃣ BUSCAR EN MONGODB (keywords)
+    // 🔎 2️⃣ BUSCAR EN pclave (con texto corregido)
     const term = corrected
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .trim();
+      .toLowerCase();
 
     const docs = await db
       .collection("knowledge")
       .find({
-        pclave: {
-          $elemMatch: {
-            $regex: term,
-            $options: "i",
-          },
-        },
+        pclave: { $in: [term] },
       })
       .toArray();
 
-    console.log("term:", term);
+    console.log("término original:", userMessage);
+    console.log("término corregido:", term);
     console.log("docs:", docs);
 
-    // 📌 3️⃣ GENERAR CONTEXTO
-    const context = docs.length > 0 ? docs.map((d) => d.text).join("\n") : "";
+    const context = docs.map((d) => d.text).join("\n");
 
-    // 🤖 4️⃣ RESPUESTA CON OPENROUTER
+    // 🤖 3️⃣ RESPONDER CON CONTEXTO
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -99,18 +93,13 @@ export default async function handler(req, res) {
           messages: [
             {
               role: "system",
-              content: "Eres Clara, asistente de servicios técnicos.",
+              content:
+                "Eres Clara, asistente de servicios técnicos. Usa solo la información del contexto. Si no está, di que no lo sabes.",
             },
-            context
-              ? {
-                  role: "system",
-                  content: `Contexto:\n${context}`,
-                }
-              : {
-                  role: "system",
-                  content:
-                    "No tengo información específica en la base de datos, responde de forma general.",
-                },
+            {
+              role: "system",
+              content: `Contexto:\n${context}`,
+            },
             ...messages,
           ],
         }),
@@ -120,9 +109,7 @@ export default async function handler(req, res) {
     const data2 = await response.json();
 
     return res.status(200).json({
-      reply:
-        data2?.choices?.[0]?.message?.content ||
-        "No tengo respuesta en este momento.",
+      reply: data2.choices?.[0]?.message?.content || "Sin respuesta",
     });
   } catch (error) {
     console.error(error);
