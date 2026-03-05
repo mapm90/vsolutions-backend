@@ -25,22 +25,61 @@ export default async function handler(req, res) {
 
     const userMessage = messages[messages.length - 1]?.content || "";
 
-    // 🔎 Búsqueda por regex dentro del array pclave
+    // 🔧 1️⃣ CORREGIR ORTOGRAFÍA CON OPENROUTER
+    let corrected = userMessage;
+
+    try {
+      const correction = await fetch(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "openai/gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "Corrige ortografía y devuelve solo el texto corregido, sin explicaciones.",
+              },
+              {
+                role: "user",
+                content: userMessage,
+              },
+            ],
+          }),
+        },
+      );
+
+      const data = await correction.json();
+      corrected = data.choices?.[0]?.message?.content?.trim() || userMessage;
+    } catch (e) {
+      console.error("error corrigiendo:", e);
+    }
+
+    // 🔎 2️⃣ BUSCAR EN pclave (con texto corregido)
+    const term = corrected
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
     const docs = await db
       .collection("knowledge")
       .find({
-        pclave: {
-          $elemMatch: {
-            $regex: userMessage,
-            $options: "i",
-          },
-        },
+        pclave: { $in: [term] },
       })
       .toArray();
 
+    console.log("término original:", userMessage);
+    console.log("término corregido:", term);
+    console.log("docs:", docs);
+
     const context = docs.map((d) => d.text).join("\n");
 
-    // 🤖 Enviar contexto a OpenRouter
+    // 🤖 3️⃣ RESPONDER CON CONTEXTO
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -67,10 +106,10 @@ export default async function handler(req, res) {
       },
     );
 
-    const data = await response.json();
+    const data2 = await response.json();
 
     return res.status(200).json({
-      reply: data.choices?.[0]?.message?.content || "Sin respuesta",
+      reply: data2.choices?.[0]?.message?.content || "Sin respuesta",
     });
   } catch (error) {
     console.error(error);
