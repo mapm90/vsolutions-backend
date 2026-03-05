@@ -55,12 +55,12 @@ export default async function handler(req, res) {
       );
 
       const data = await correction.json();
-      corrected = data.choices?.[0]?.message?.content?.trim() || userMessage;
+      corrected = data?.choices?.[0]?.message?.content?.trim() || userMessage;
     } catch (e) {
       console.error("error corrigiendo:", e);
     }
 
-    // 🔎 2️⃣ BUSCAR EN pclave (keyword)
+    // 🔎 2️⃣ BUSCAR EN MONGODB (keywords)
     const term = corrected
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
@@ -70,17 +70,22 @@ export default async function handler(req, res) {
     const docs = await db
       .collection("knowledge")
       .find({
-        pclave: { $in: [term] },
+        pclave: {
+          $elemMatch: {
+            $regex: term,
+            $options: "i",
+          },
+        },
       })
       .toArray();
 
     console.log("term:", term);
     console.log("docs:", docs);
 
-    // 📌 3️⃣ GENERAR CONTEXTO (si hay)
+    // 📌 3️⃣ GENERAR CONTEXTO
     const context = docs.length > 0 ? docs.map((d) => d.text).join("\n") : "";
 
-    // 🤖 4️⃣ RESPUESTA
+    // 🤖 4️⃣ RESPUESTA CON OPENROUTER
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -104,7 +109,7 @@ export default async function handler(req, res) {
               : {
                   role: "system",
                   content:
-                    "No tengo información específica en la base de datos, responde de forma general si puedes.",
+                    "No tengo información específica en la base de datos, responde de forma general.",
                 },
             ...messages,
           ],
@@ -116,8 +121,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       reply:
-        data2.choices?.[0]?.message?.content ||
-        db.knowledge.find({ pclave: "contacto" }),
+        data2?.choices?.[0]?.message?.content ||
+        "No tengo respuesta en este momento.",
     });
   } catch (error) {
     console.error(error);
