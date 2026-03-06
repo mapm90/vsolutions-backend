@@ -69,8 +69,11 @@ export default async function handler(req, res) {
                 "Solo puedes responder sobre temas relacionados con nuestro negocio y la información proporcionada. " +
                 "Si la pregunta no tiene relación con el negocio, responde amablemente que solo puedes ayudar en temas del negocio. " +
                 "No inventes información fuera del contexto disponible. " +
-                "es importante que uses la información del contexto para responder." +
-                "Responde usando esta información adicional o contexto si es relevante:\n\n" +
+                "Es importante que uses la información del contexto para responder. " +
+                "Detecta si el mensaje del usuario tiene faltas de ortografía, palabras incorrectas o incongruencias gramaticales, " +
+                "y adviértele al usuario si su mensaje es confuso o difícil de entender. " +
+                "Si el mensaje es muy corto o ambiguo, pídele que lo reformule con más detalles. " +
+                "Responde usando esta información adicional como contexto si es relevante:\n\n" +
                 contexto,
             },
             ...messages,
