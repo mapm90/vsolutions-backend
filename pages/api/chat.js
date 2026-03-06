@@ -1,5 +1,4 @@
 import clientPromise from "../../lib/mongodb";
-import { procesarTexto } from "../../lib/nlp";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -18,6 +17,7 @@ export default async function handler(req, res) {
 
   try {
     const { messages } = req.body;
+
     if (!messages || !Array.isArray(messages)) {
       res.status(400).json({ message: "Datos inválidos" });
       return;
@@ -25,14 +25,12 @@ export default async function handler(req, res) {
 
     const userMessage = messages[messages.length - 1]?.content || "";
 
-    // ===== NLP =====
-    const raicesMensaje = procesarTexto(userMessage);
-
-    // ===== Mongo =====
+    // Conectar a MongoDB
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB);
     const collection = db.collection("knowledge");
 
+    // Obtener todas las colecciones (o puedes filtrar)
     const docs = await collection.find({}).toArray();
 
     let contexto = "";
@@ -40,20 +38,17 @@ export default async function handler(req, res) {
     docs.forEach((doc) => {
       if (!doc.pclave || !Array.isArray(doc.pclave)) return;
 
-      // NLP también en palabras clave
-      const raicesClave = doc.pclave.map((p) =>
-        natural.PorterStemmer.stem(p.toLowerCase()),
+      // Comprobamos si alguna palabra clave coincide (regex)
+      const match = doc.pclave.some((palabra) =>
+        new RegExp(`\\b${palabra}`, "i").test(userMessage),
       );
-
-      // coincidencia: alguna raíz en mensaje
-      const match = raicesClave.some((r) => raicesMensaje.includes(r));
 
       if (match) {
         contexto += doc.text + "\n\n";
       }
     });
 
-    // ===== IA =====
+    // Ahora llamamos al modelo con el contexto enriquecido
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -68,7 +63,7 @@ export default async function handler(req, res) {
             {
               role: "system",
               content:
-                "Responde usando esta información si es relevante:\n\n" +
+                "Responde usando esta información adicional si es relevante:\n\n" +
                 contexto,
             },
             ...messages,
@@ -81,6 +76,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({
       reply: data.choices?.[0]?.message?.content || "Sin respuesta",
+      debug: data,
       contextoUsado: contexto,
     });
   } catch (error) {
