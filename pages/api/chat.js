@@ -1,3 +1,5 @@
+import clientPromise from "../../lib/mongodb";
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -21,6 +23,32 @@ export default async function handler(req, res) {
       return;
     }
 
+    const userMessage = messages[messages.length - 1]?.content || "";
+
+    // Conectar a MongoDB
+    const client = await clientPromise;
+    const db = client.db(process.env.MONGODB_DB);
+    const collection = db.collection("knowledge");
+
+    // Obtener todas las colecciones (o puedes filtrar)
+    const docs = await collection.find({}).toArray();
+
+    let contexto = "";
+
+    docs.forEach((doc) => {
+      if (!doc.pclave || !Array.isArray(doc.pclave)) return;
+
+      // Comprobamos si alguna palabra clave coincide (regex)
+      const match = doc.pclave.some((palabra) =>
+        new RegExp(`\\b${palabra}`, "i").test(userMessage),
+      );
+
+      if (match) {
+        contexto += doc.text + "\n\n";
+      }
+    });
+
+    // Ahora llamamos al modelo con el contexto enriquecido
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -35,7 +63,8 @@ export default async function handler(req, res) {
             {
               role: "system",
               content:
-                "siempre responde lo mismo, que te llamas Clara, sea cual sea la pregunta",
+                "Responde usando esta información adicional si es relevante:\n\n" +
+                contexto,
             },
             ...messages,
           ],
@@ -48,6 +77,7 @@ export default async function handler(req, res) {
     res.status(200).json({
       reply: data.choices?.[0]?.message?.content || "Sin respuesta",
       debug: data,
+      contextoUsado: contexto,
     });
   } catch (error) {
     res.status(500).json({
