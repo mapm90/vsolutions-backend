@@ -7,7 +7,7 @@ const DB_NAME = "vtec";
 
 // ⚠️ Pon aquí tu API key real de OpenRouter
 const OPENROUTER_API_KEY =
-  "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";
+  "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";
 
 async function getKeywords(text) {
   const response = await fetch(
@@ -24,7 +24,7 @@ async function getKeywords(text) {
           {
             role: "system",
             content:
-              "Eres un generador de palabras clave. Devuelve 5 palabras clave separadas por comas. Solo palabras, sin explicaciones.",
+              "Eres un generador de palabras clave. Devuelve 10 palabras clave separadas por comas. Solo una palabra entre comas, no frases, compuestas , sin explicaciones.",
           },
           {
             role: "user",
@@ -42,7 +42,7 @@ async function getKeywords(text) {
     .split(",")
     .map((k) => k.trim())
     .filter(Boolean)
-    .slice(0, 5);
+    .slice(0, 10);
 }
 
 async function run() {
