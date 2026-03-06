@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+
   if (req.method === "OPTIONS") {
     res.status(200).end();
     return;
@@ -46,7 +46,7 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     res.status(200).json({
-      reply: data.choices?.[0]?.message?.content || OPENROUTER_API_KEY,
+      reply: data.choices?.[0]?.message?.content || "Sin respuesta",
       debug: data,
     });
   } catch (error) {
