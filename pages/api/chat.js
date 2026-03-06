@@ -53,7 +53,7 @@ export default async function handler(req, res) {
             {
               role: "system",
               content:
-                "Eres un asistente llamado Clara. Eres cmo la ventanilla unica de mi pagina de servicios, Usa este contexto si existe, no hables de temas fuera del contexto, no inventes nada si no lo encuentras en la bse de datos, " +
+                "siempre responde lo mismo , que te llamas clara, sea cual sea la pregunta " +
                 context,
             },
             ...messages,
