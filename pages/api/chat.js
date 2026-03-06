@@ -1,5 +1,3 @@
-import clientPromise from "../../lib/mongodb";
-
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -23,22 +21,6 @@ export default async function handler(req, res) {
       return;
     }
 
-    const client = await clientPromise;
-    const db = client.db(process.env.MONGODB_DB);
-
-    const userMessage = messages[messages.length - 1]?.content || "";
-
-    // 🔎 búsqueda por palabra (regex)
-    const docs = await db
-      .collection("knowledge")
-      .find({
-        text: { $regex: userMessage, $options: "i" },
-      })
-      .toArray();
-
-    const context = docs.map((d) => d.text).join("\n");
-
-    // 🤖 IA responde con contexto (si hay)
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -53,8 +35,7 @@ export default async function handler(req, res) {
             {
               role: "system",
               content:
-                "siempre responde lo mismo , que te llamas clara, sea cual sea la pregunta " +
-                context,
+                "siempre responde lo mismo, que te llamas Clara, sea cual sea la pregunta",
             },
             ...messages,
           ],
@@ -65,7 +46,7 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     res.status(200).json({
-      reply: data.choices?.[0]?.message?.content || "Sin respuestass",
+      reply: data.choices?.[0]?.message?.content || "Sin respuesta",
     });
   } catch (error) {
     res.status(500).json({
