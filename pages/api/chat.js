@@ -63,7 +63,8 @@ ${contexto}`.trim();
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.1-8b-instruct",
+          model: "openai/gpt-4o-mini",
+
           messages: [{ role: "system", content: systemPrompt }, ...messages],
         }),
       },
