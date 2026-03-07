@@ -50,7 +50,7 @@ INFORMACIÓN DEL NEGOCIO:
 Tienes acceso a la siguiente información. Úsala cuando sea relevante para responder.
 No es necesario que el usuario use palabras exactas, interpreta la intención del mensaje.
 
-${contexto}`.trim();
+       ${contexto}`.trim();
 
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
