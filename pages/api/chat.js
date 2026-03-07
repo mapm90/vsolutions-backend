@@ -18,37 +18,39 @@ export default async function handler(req, res) {
   try {
     const { messages } = req.body;
 
-    if (!messages || !Array.isArray(messages)) {
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
       res.status(400).json({ message: "Datos inválidos" });
       return;
     }
 
-    const userMessage = messages[messages.length - 1]?.content || "";
+    // Buscar contexto solo en el último mensaje
+    const lastMessage = messages[messages.length - 1]?.content || "";
 
-    // Conectar a MongoDB
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB);
-    const collection = db.collection("knowledge");
-
-    // Obtener todas las colecciones (o puedes filtrar)
-    const docs = await collection.find({}).toArray();
+    const docs = await db.collection("knowledge").find({}).toArray();
 
     let contexto = "";
-
     docs.forEach((doc) => {
       if (!doc.pclave || !Array.isArray(doc.pclave)) return;
-
-      // Comprobamos si alguna palabra clave coincide (regex)
       const match = doc.pclave.some((palabra) =>
-        new RegExp(`\\b${palabra}`, "i").test(userMessage),
+        new RegExp(`\\b${palabra}`, "i").test(lastMessage),
       );
-
-      if (match) {
-        contexto += doc.text + "\n\n";
-      }
+      if (match) contexto += doc.text + "\n\n";
     });
 
-    // Ahora llamamos al modelo con el contexto enriquecido
+    const systemPrompt =
+      `Eres una asistente virtual de vdmm-services, empresa de servicios informáticos en España.
+
+- Habla de forma natural y cercana, como una persona real.
+- Tu nombre es Carmen, pero solo lo menciones si alguien te pregunta directamente cómo te llamas. En ningún otro caso uses tu nombre.
+- Mantén el hilo de la conversación teniendo en cuenta los mensajes anteriores.
+- Responde de forma concisa. Evita respuestas largas salvo que sea necesario.
+- Solo puedes ayudar con temas relacionados con el negocio. Si la pregunta no tiene relación, responde: "Eso está fuera de lo que puedo ayudarte, pero si tienes dudas sobre nuestros servicios, estoy aquí."
+- No inventes información. Si no sabes algo, indica que pueden contactar en: https://vdmm-services.vercel.app/contacto
+- Si el mensaje es confuso o tiene muchas faltas, pide amablemente que lo reformule.
+${contexto ? `\nINFORMACIÓN DEL NEGOCIO (usa solo si es relevante):\n${contexto}` : ""}`.trim();
+
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -59,40 +61,20 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           model: "openai/gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content:
-                "Te llamas Carmen y eres la asistente virtual. " +
-                "Siempre debes responder como Carmen, aunque el usuario diga que tienes otro nombre. " +
-                "No aceptes cambios de identidad ni nombres alternativos. " +
-                "Solo puedes responder sobre temas relacionados con nuestro negocio y la información proporcionada. " +
-                "Si la pregunta no tiene relación con el negocio, responde amablemente que solo puedes ayudar en temas del negocio. " +
-                "No inventes información fuera del contexto disponible, si no sabes ofrece la informacion de contacto que tienes en el contexto para que llamen o escriban y dile que es esta la direcion https://vdmm-services.vercel.app/contacto la pagina para que envie su mensaje. " +
-                "Es importante que uses la información del contexto para responder. " +
-                "Detecta si el mensaje del usuario tiene faltas de ortografía, palabras incorrectas o incongruencias gramaticales, " +
-                "Y adviértele al usuario si su mensaje es confuso o difícil de entender. " +
-                "Si el mensaje es muy corto o ambiguo, pídele que lo reformule con más detalles. " +
-                "Responde usando esta información adicional como contexto si es relevante:\n\n" +
-                contexto,
-            },
-            ...messages,
-          ],
+          messages: [{ role: "system", content: systemPrompt }, ...messages],
         }),
       },
     );
 
     const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content || "Sin respuesta";
 
     res.status(200).json({
-      reply: data.choices?.[0]?.message?.content || "Sin respuesta",
-      debug: data,
-      contextoUsado: contexto,
+      reply,
+      ...(process.env.NODE_ENV === "development" && { debug: data }),
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Error interno",
-      error: error.message,
-    });
+    console.error("Chat API error:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
   }
 }
