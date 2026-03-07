@@ -23,21 +23,15 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Buscar contexto solo en el último mensaje
-    const lastMessage = messages[messages.length - 1]?.content || "";
-
+    // Cargar todo el conocimiento del negocio de una vez
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB);
-    const docs = await db.collection("knowledge").find({}).toArray();
+    const docs = await db
+      .collection("knowledge")
+      .find({}, { projection: { text: 1, _id: 0 } })
+      .toArray();
 
-    let contexto = "";
-    docs.forEach((doc) => {
-      if (!doc.pclave || !Array.isArray(doc.pclave)) return;
-      const match = doc.pclave.some((palabra) =>
-        new RegExp(`\\b${palabra}`, "i").test(lastMessage),
-      );
-      if (match) contexto += doc.text + "\n\n";
-    });
+    const contexto = docs.map((doc) => doc.text).join("\n\n---\n\n");
 
     const systemPrompt =
       `Eres una asistente virtual de vdmm-services, empresa de servicios informáticos en España.
@@ -49,7 +43,12 @@ export default async function handler(req, res) {
 - Solo puedes ayudar con temas relacionados con el negocio. Si la pregunta no tiene relación, responde: "Eso está fuera de lo que puedo ayudarte, pero si tienes dudas sobre nuestros servicios, estoy aquí."
 - No inventes información. Si no sabes algo, indica que pueden contactar en: https://vdmm-services.vercel.app/contacto
 - Si el mensaje es confuso o tiene muchas faltas, pide amablemente que lo reformule.
-${contexto ? `\nINFORMACIÓN DEL NEGOCIO (usa solo si es relevante):\n${contexto}` : ""}`.trim();
+
+INFORMACIÓN DEL NEGOCIO:
+Tienes acceso a la siguiente información. Úsala cuando sea relevante para responder.
+No es necesario que el usuario use palabras exactas, interpreta la intención del mensaje.
+
+${contexto}`.trim();
 
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
