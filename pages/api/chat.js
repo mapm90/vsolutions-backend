@@ -44,6 +44,7 @@ export default async function handler(req, res) {
 - No inventes información. Si no sabes algo, indica que pueden contactar en: https://vdmm-services.vercel.app/contacto
 - Siempre que preguntem por contactos, ademas de la información, dile al usuario que se encuentra en los botones de navegacion de la parte superior e inferior de la página. y que pueden acceder a ella desde cualquier parte del sitio. 
 - Si el mensaje es confuso o tiene muchas faltas, pide amablemente que lo reformule.
+- si preguntan como puedo contratar servicios, le dices que en el apartado servicios  cada servicio tiene su pripio formulario, y que el vinculo se encuentra en los botones de navegacion de la parte superior e inferior de la página. y que pueden acceder a ella desde cualquier parte del sitio.
 
 INFORMACIÓN DEL NEGOCIO:
 Tienes acceso a la siguiente información. Úsala cuando sea relevante para responder.
