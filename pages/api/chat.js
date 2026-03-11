@@ -171,16 +171,8 @@ INSTRUCCIONES PARA VENTAS:
 - Si el usuario confirma que quiere adquirir un producto (dice "sí", "lo quiero", "me lo llevo", "lo compro", "confirmo", "me interesa ese", etc.)
   pero AÚN NO ha proporcionado datos de contacto, responde en texto normal pidiéndole su nombre y un email o teléfono. Ejemplo:
   "¡Perfecto! Para que el equipo comercial pueda contactarte, necesito tus datos de contacto: nombre y un email o teléfono."
-- Una vez que el usuario haya confirmado el producto Y proporcionado sus datos de contacto, responde ÚNICAMENTE con este JSON y nada más:
-{
-  "tipo": "venta_confirmada",
-  "mensaje": "Mensaje de confirmación al cliente indicándole que el equipo comercial se pondrá en contacto pronto.",
-  "producto": "nombre exacto del producto",
-  "precio": 000,
-  "nombre_usuario": "nombre si lo proporcionó, o null",
-  "email_usuario": "email si lo proporcionó, o null",
-  "telefono_usuario": "teléfono si lo proporcionó, o null"
-}
+- Una vez que el usuario haya confirmado el producto Y proporcionado sus datos de contacto, responde amablemente que su pedido ha sido registrado y que el equipo comercial se pondrá en contacto con él lo antes posible. Ejemplo:
+  "¡Gracias por tu compra! He registrado tu pedido de [nombre del producto]. Nuestro equipo comercial se pondrá en contacto contigo lo antes posible para gestionar los detalles."
 - Si el usuario pregunta por un producto que no está en el catálogo, indícale que contacte a través del formulario.`;
       }
     }
