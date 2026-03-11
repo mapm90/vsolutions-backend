@@ -59,12 +59,20 @@ const enviarEmailNotificacion = async (pedido) => {
         <h2 style="color: #4f46e5;">🛒 Nueva venta confirmada por el chat</h2>
         <table style="width: 100%; border-collapse: collapse;">
           <tr>
+            <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Nombre cliente</td>
+            <td style="padding: 8px; border: 1px solid #e5e7eb;">${pedido.nombre_usuario ?? "No proporcionado"}</td>
+          </tr>
+          <tr>
             <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Producto</td>
             <td style="padding: 8px; border: 1px solid #e5e7eb;">${pedido.producto}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Precio</td>
             <td style="padding: 8px; border: 1px solid #e5e7eb;">${pedido.precio ? pedido.precio + "€" : "No especificado"}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Teléfono cliente</td>
+            <td style="padding: 8px; border: 1px solid #e5e7eb;">${pedido.telefono_usuario ?? "No proporcionado"}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Email cliente</td>
@@ -151,14 +159,18 @@ ${listaProductos}
 INSTRUCCIONES PARA VENTAS:
 - Presenta únicamente los productos más relevantes según lo que busca el usuario.
 - Incluye siempre el precio cuando presentes un producto.
-- Si el usuario confirma que quiere adquirir un producto (dice "sí", "lo quiero", "me lo llevo", "lo compro", "confirmo", "me interesa ese", etc.),
-  responde ÚNICAMENTE con el siguiente JSON y nada más:
+- Si el usuario confirma que quiere adquirir un producto (dice "sí", "lo quiero", "me lo llevo", "lo compro", "confirmo", "me interesa ese", etc.)
+  y AÚN NO ha proporcionado su nombre y email o teléfono, responde en texto normal pidiéndole sus datos de contacto. Ejemplo:
+  "¡Perfecto! Para avisar al equipo comercial y que puedan contactarte, necesito que me indiques tu nombre y un email o teléfono de contacto."
+- Una vez que el usuario haya proporcionado sus datos de contacto y confirmado el producto, responde ÚNICAMENTE con el siguiente JSON y nada más:
 {
   "tipo": "venta_confirmada",
-  "mensaje": "Tu mensaje de confirmación al cliente aquí, indícale que nos pondremos en contacto para gestionar el pedido.",
+  "mensaje": "Tu mensaje de confirmación al cliente aquí, indícale que el equipo comercial se pondrá en contacto pronto.",
   "producto": "nombre exacto del producto",
   "precio": 000,
-  "email_usuario": "email si lo mencionó en la conversación, o null"
+  "email_usuario": "email del usuario si lo proporcionó, o null",
+  "telefono_usuario": "teléfono si lo proporcionó, o null",
+  "nombre_usuario": "nombre si lo proporcionó, o null"
 }
 - Si el usuario pregunta por un producto que no está en el catálogo, indícale que contacte a través del formulario para buscar la mejor opción.`;
       }
@@ -218,7 +230,9 @@ ${contextoProductos}`.trim();
         await db.collection("pedidos").insertOne({
           producto: parsed.producto,
           precio: parsed.precio ?? null,
+          nombre_usuario: parsed.nombre_usuario ?? null,
           email_usuario: parsed.email_usuario ?? null,
+          telefono_usuario: parsed.telefono_usuario ?? null,
           fecha: new Date(),
           estado: "pendiente",
           conversacion: messages,
