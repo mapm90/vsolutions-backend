@@ -22,10 +22,7 @@ const detectarIntencionCompra = async (mensaje) => {
             content:
               "Eres un clasificador. Responde ÚNICAMENTE con 'si' o 'no', sin puntuación ni explicación. Responde 'si' si el mensaje del usuario indica intención de comprar, ver productos, preguntar por precios, disponibilidad, stock, presupuesto o adquirir algo. En cualquier otro caso responde 'no'.",
           },
-          {
-            role: "user",
-            content: mensaje,
-          },
+          { role: "user", content: mensaje },
         ],
       }),
     },
@@ -34,6 +31,18 @@ const detectarIntencionCompra = async (mensaje) => {
   const data = await response.json();
   const respuesta = data.choices?.[0]?.message?.content?.trim().toLowerCase();
   return respuesta === "si";
+};
+
+// ─────────────────────────────────────────────
+// Detecta si ya hay una venta en curso en el
+// historial (bot ya pidió datos de contacto)
+// ─────────────────────────────────────────────
+const hayVentaPendienteEnHistorial = (messages) => {
+  return messages.some(
+    (m) =>
+      m.role === "assistant" &&
+      m.content?.toLowerCase().includes("datos de contacto"),
+  );
 };
 
 // ─────────────────────────────────────────────
@@ -59,6 +68,10 @@ const enviarEmailNotificacion = async (pedido) => {
         <h2 style="color: #4f46e5;">🛒 Nueva venta confirmada por el chat</h2>
         <table style="width: 100%; border-collapse: collapse;">
           <tr>
+            <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Nombre cliente</td>
+            <td style="padding: 8px; border: 1px solid #e5e7eb;">${pedido.nombre_usuario ?? "No proporcionado"}</td>
+          </tr>
+          <tr>
             <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Producto</td>
             <td style="padding: 8px; border: 1px solid #e5e7eb;">${pedido.producto}</td>
           </tr>
@@ -69,6 +82,10 @@ const enviarEmailNotificacion = async (pedido) => {
           <tr>
             <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Email cliente</td>
             <td style="padding: 8px; border: 1px solid #e5e7eb;">${pedido.email_usuario ?? "No proporcionado"}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Teléfono cliente</td>
+            <td style="padding: 8px; border: 1px solid #e5e7eb;">${pedido.telefono_usuario ?? "No proporcionado"}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Fecha</td>
@@ -96,7 +113,6 @@ export default async function handler(req, res) {
     res.status(200).end();
     return;
   }
-
   if (req.method !== "POST") {
     res.status(405).end();
     return;
@@ -121,13 +137,14 @@ export default async function handler(req, res) {
 
     const contexto = docs.map((doc) => doc.text).join("\n\n---\n\n");
 
-    // ── Detectar intención de compra con el modelo ──
+    // ── Detectar si hay intención de compra O venta ya en curso ──
     const ultimoMensaje = messages[messages.length - 1]?.content || "";
     let contextoProductos = "";
 
     const hayIntencionCompra = await detectarIntencionCompra(ultimoMensaje);
+    const ventaEnCurso = hayVentaPendienteEnHistorial(messages);
 
-    if (hayIntencionCompra) {
+    if (hayIntencionCompra || ventaEnCurso) {
       const productos = await db
         .collection("products")
         .find({}, { projection: { _id: 0 } })
@@ -151,16 +168,20 @@ ${listaProductos}
 INSTRUCCIONES PARA VENTAS:
 - Presenta únicamente los productos más relevantes según lo que busca el usuario.
 - Incluye siempre el precio cuando presentes un producto.
-- Si el usuario confirma que quiere adquirir un producto (dice "sí", "lo quiero", "me lo llevo", "lo compro", "confirmo", "me interesa ese", etc.),
-  responde ÚNICAMENTE con el siguiente JSON y nada más:
+- Si el usuario confirma que quiere adquirir un producto (dice "sí", "lo quiero", "me lo llevo", "lo compro", "confirmo", "me interesa ese", etc.)
+  pero AÚN NO ha proporcionado datos de contacto, responde en texto normal pidiéndole su nombre y un email o teléfono. Ejemplo:
+  "¡Perfecto! Para que el equipo comercial pueda contactarte, necesito tus datos de contacto: nombre y un email o teléfono."
+- Una vez que el usuario haya confirmado el producto Y proporcionado sus datos de contacto, responde ÚNICAMENTE con este JSON y nada más:
 {
   "tipo": "venta_confirmada",
-  "mensaje": "Tu mensaje de confirmación al cliente aquí, indícale que nos pondremos en contacto para gestionar el pedido.",
+  "mensaje": "Mensaje de confirmación al cliente indicándole que el equipo comercial se pondrá en contacto pronto.",
   "producto": "nombre exacto del producto",
   "precio": 000,
-  "email_usuario": "email si lo mencionó en la conversación, o null"
+  "nombre_usuario": "nombre si lo proporcionó, o null",
+  "email_usuario": "email si lo proporcionó, o null",
+  "telefono_usuario": "teléfono si lo proporcionó, o null"
 }
-- Si el usuario pregunta por un producto que no está en el catálogo, indícale que contacte a través del formulario para buscar la mejor opción.`;
+- Si el usuario pregunta por un producto que no está en el catálogo, indícale que contacte a través del formulario.`;
       }
     }
 
@@ -218,7 +239,9 @@ ${contextoProductos}`.trim();
         await db.collection("pedidos").insertOne({
           producto: parsed.producto,
           precio: parsed.precio ?? null,
+          nombre_usuario: parsed.nombre_usuario ?? null,
           email_usuario: parsed.email_usuario ?? null,
+          telefono_usuario: parsed.telefono_usuario ?? null,
           fecha: new Date(),
           estado: "pendiente",
           conversacion: messages,
