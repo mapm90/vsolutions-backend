@@ -171,16 +171,17 @@ INSTRUCCIONES PARA VENTAS:
 - Si el usuario confirma que quiere adquirir un producto (dice "sí", "lo quiero", "me lo llevo", "lo compro", "confirmo", "me interesa ese", etc.)
   pero AÚN NO ha proporcionado datos de contacto, responde en texto normal pidiéndole su nombre y un email o teléfono. Ejemplo:
   "¡Perfecto! Para que el equipo comercial pueda contactarte, necesito tus datos de contacto: nombre y un email o teléfono."
-- Una vez que el usuario haya confirmado el producto Y proporcionado sus datos de contacto, responde ÚNICAMENTE con este JSON y nada más:
+- Una vez que el usuario haya confirmado el producto Y proporcionado sus datos de contacto, responde ÚNICAMENTE con este JSON y nada más (sin texto antes ni después, sin bloques de código markdown):
 {
   "tipo": "venta_confirmada",
-  "mensaje": "Mensaje de confirmación al cliente indicándole que el equipo comercial se pondrá en contacto pronto.",
+  "mensaje": "¡Perfecto! He registrado tu pedido de [nombre del producto]. Nuestro equipo comercial se pondrá en contacto contigo en breve para confirmar los detalles.",
   "producto": "nombre exacto del producto",
   "precio": 000,
   "nombre_usuario": "nombre si lo proporcionó, o null",
   "email_usuario": "email si lo proporcionó, o null",
   "telefono_usuario": "teléfono si lo proporcionó, o null"
 }
+- IMPORTANTE: El campo "mensaje" debe ser un texto natural y personalizado dirigido al cliente. Sustituye [nombre del producto] por el nombre real del producto.
 - Si el usuario pregunta por un producto que no está en el catálogo, indícale que contacte a través del formulario.`;
       }
     }
@@ -229,10 +230,21 @@ ${contextoProductos}`.trim();
     let reply = rawReply;
 
     try {
-      const cleaned = rawReply.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(cleaned);
+      // Extrae el JSON aunque el modelo añada texto antes o después,
+      // o lo envuelva en bloques de código markdown (```json ... ```)
+      const jsonMatch = rawReply.match(
+        /\{[\s\S]*?"tipo"\s*:\s*"venta_confirmada"[\s\S]*?\}/,
+      );
+      if (!jsonMatch) throw new Error("No hay JSON de venta en la respuesta");
+
+      const parsed = JSON.parse(jsonMatch[0]);
 
       if (parsed.tipo === "venta_confirmada") {
+        // Garantiza que el mensaje nunca sea vacío ni llegue el JSON crudo al usuario
+        if (!parsed.mensaje || parsed.mensaje.trim() === "") {
+          parsed.mensaje = `¡Perfecto! He registrado tu pedido de ${parsed.producto ?? "tu producto"}. Nuestro equipo comercial se pondrá en contacto contigo en breve para confirmar los detalles.`;
+        }
+
         reply = parsed.mensaje;
 
         // Guardar pedido en MongoDB
@@ -255,7 +267,7 @@ ${contextoProductos}`.trim();
         }
       }
     } catch {
-      // Respuesta normal de texto, no era JSON
+      // Respuesta normal de texto, o JSON malformado — se usa rawReply tal cual
     }
 
     res.status(200).json({
