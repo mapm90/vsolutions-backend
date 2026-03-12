@@ -46,6 +46,21 @@ const hayVentaPendienteEnHistorial = (messages) => {
 };
 
 // ─────────────────────────────────────────────
+// Construye las filas de productos para el email
+// ─────────────────────────────────────────────
+const buildProductosRows = (productos) => {
+  return productos
+    .map(
+      (p) => `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;">${p.nombre}</td>
+          <td style="padding: 8px; border: 1px solid #e5e7eb; text-align: right;">${p.precio != null ? p.precio + "€" : "No especificado"}</td>
+        </tr>`,
+    )
+    .join("");
+};
+
+// ─────────────────────────────────────────────
 // Envío de email al negocio
 // ─────────────────────────────────────────────
 const enviarEmailNotificacion = async (pedido) => {
@@ -59,25 +74,25 @@ const enviarEmailNotificacion = async (pedido) => {
     },
   });
 
+  const productosArray = pedido.productos ?? [];
+  const precioTotal = pedido.precio_total ?? 0;
+  const productosTitulo =
+    productosArray.length === 1
+      ? productosArray[0].nombre
+      : `${productosArray.length} productos`;
+
   await transporter.sendMail({
     from: `"Carmen - Asistente VDMM" <${process.env.EMAIL_USER}>`,
     to: process.env.EMAIL_NEGOCIO,
-    subject: `🛒 Nueva venta confirmada — ${pedido.producto}`,
+    subject: `🛒 Nueva venta confirmada — ${productosTitulo}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #4f46e5;">🛒 Nueva venta confirmada por el chat</h2>
-        <table style="width: 100%; border-collapse: collapse;">
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
           <tr>
             <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Nombre cliente</td>
             <td style="padding: 8px; border: 1px solid #e5e7eb;">${pedido.nombre_usuario ?? "No proporcionado"}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Producto</td>
-            <td style="padding: 8px; border: 1px solid #e5e7eb;">${pedido.producto}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Precio</td>
-            <td style="padding: 8px; border: 1px solid #e5e7eb;">${pedido.precio ? pedido.precio + "€" : "No especificado"}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">Email cliente</td>
@@ -92,6 +107,26 @@ const enviarEmailNotificacion = async (pedido) => {
             <td style="padding: 8px; border: 1px solid #e5e7eb;">${new Date().toLocaleString("es-ES")}</td>
           </tr>
         </table>
+
+        <h3 style="color: #374151; margin-bottom: 8px;">Productos pedidos</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #f9fafb;">
+              <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left;">Producto</th>
+              <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: right;">Precio</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${buildProductosRows(productosArray)}
+          </tbody>
+          <tfoot>
+            <tr style="background: #f9fafb;">
+              <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">TOTAL</td>
+              <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold; text-align: right;">${precioTotal}€</td>
+            </tr>
+          </tfoot>
+        </table>
+
         <p style="margin-top: 24px; color: #6b7280; font-size: 14px;">
           Este pedido ha sido registrado automáticamente en la base de datos.
           Contacta al cliente para gestionar el pago y envío.
@@ -167,22 +202,26 @@ ${listaProductos}
 
 INSTRUCCIONES PARA VENTAS:
 - Presenta únicamente los productos más relevantes según lo que busca el usuario.
-- Si el usuario pregunta por un producto que no está en el catálogo, indícale que contacte a través del formulario de contacto y brindales la información de contacto.
+- Si el usuario pregunta por un producto que no está en el catálogo, indícale que contacte a través del formulario de contacto y bríndale la información de contacto.
 - Incluye siempre el precio cuando presentes un producto.
-- Si el usuario confirma que quiere adquirir un producto (dice "sí", "lo quiero", "me lo llevo", "lo compro", "confirmo", "me interesa ese", etc.)
-  pero AÚN NO ha proporcionado datos de contacto, responde en texto normal pidiéndole su nombre y un email o teléfono. Ejemplo:
+- El usuario puede pedir uno o varios productos a la vez. Si pide varios, muéstrale el precio de cada uno y el total sumado antes de confirmar.
+- Si el usuario confirma que quiere adquirir uno o varios productos pero AÚN NO ha proporcionado datos de contacto, responde en texto normal pidiéndole su nombre y un email o teléfono. Ejemplo:
   "¡Perfecto! Para que el equipo comercial pueda contactarte, necesito tus datos de contacto: nombre y un email o teléfono."
-- Una vez que el usuario haya confirmado el producto Y proporcionado sus datos de contacto, responde ÚNICAMENTE con este JSON y nada más (sin texto antes ni después, sin bloques de código markdown):
+- Una vez que el usuario haya confirmado los productos Y proporcionado sus datos de contacto, responde ÚNICAMENTE con este JSON y nada más (sin texto antes ni después, sin bloques de código markdown):
 {
   "tipo": "venta_confirmada",
-  "mensaje": "¡Perfecto! He registrado tu pedido de [nombre del producto]. Nuestro equipo comercial se pondrá en contacto contigo en breve para confirmar los detalles.",
-  "producto": "nombre exacto del producto",
-  "precio": 000,
+  "mensaje": "¡Perfecto! He registrado tu pedido de [lista de productos]. El total es [precio_total]€. Nuestro equipo comercial se pondrá en contacto contigo en breve para confirmar los detalles.",
+  "productos": [
+    { "nombre": "nombre exacto del producto 1", "precio": 000 },
+    { "nombre": "nombre exacto del producto 2", "precio": 000 }
+  ],
+  "precio_total": 000,
   "nombre_usuario": "nombre si lo proporcionó, o null",
   "email_usuario": "email si lo proporcionó, o null",
   "telefono_usuario": "teléfono si lo proporcionó, o null"
 }
-- IMPORTANTE: El campo "mensaje" debe ser un texto natural y personalizado dirigido al cliente. Sustituye [nombre del producto] por el nombre real del producto.
+- IMPORTANTE: El campo "mensaje" debe ser un texto natural y personalizado. Sustituye [lista de productos] por los nombres reales separados por comas y [precio_total] por la suma correcta de todos los productos.
+- Si solo hay un producto, el array "productos" tendrá un único elemento igualmente.
 `;
       }
     }
@@ -241,17 +280,33 @@ ${contextoProductos}`.trim();
       const parsed = JSON.parse(jsonMatch[0]);
 
       if (parsed.tipo === "venta_confirmada") {
+        // Normaliza: acepta tanto el nuevo formato (productos[]) como el legacy (producto)
+        const productosArray =
+          Array.isArray(parsed.productos) && parsed.productos.length > 0
+            ? parsed.productos
+            : parsed.producto
+              ? [{ nombre: parsed.producto, precio: parsed.precio ?? null }]
+              : [];
+
+        // Calcula el total si el modelo no lo incluyó o lo calculó mal
+        const precioTotal =
+          parsed.precio_total ??
+          productosArray.reduce((sum, p) => sum + (p.precio ?? 0), 0);
+
         // Garantiza que el mensaje nunca sea vacío ni llegue el JSON crudo al usuario
         if (!parsed.mensaje || parsed.mensaje.trim() === "") {
-          parsed.mensaje = `¡Perfecto! He registrado tu pedido de ${parsed.producto ?? "tu producto"}. Nuestro equipo comercial se pondrá en contacto contigo en breve para confirmar los detalles.`;
+          const nombresProductos = productosArray
+            .map((p) => p.nombre)
+            .join(", ");
+          parsed.mensaje = `¡Perfecto! He registrado tu pedido de ${nombresProductos || "tu producto"}. El total es ${precioTotal}€. Nuestro equipo comercial se pondrá en contacto contigo en breve para confirmar los detalles.`;
         }
 
         reply = parsed.mensaje;
 
         // Guardar pedido en MongoDB
         await db.collection("pedidos").insertOne({
-          producto: parsed.producto,
-          precio: parsed.precio ?? null,
+          productos: productosArray,
+          precio_total: precioTotal,
           nombre_usuario: parsed.nombre_usuario ?? null,
           email_usuario: parsed.email_usuario ?? null,
           telefono_usuario: parsed.telefono_usuario ?? null,
@@ -262,7 +317,11 @@ ${contextoProductos}`.trim();
 
         // Notificar al negocio por email
         try {
-          await enviarEmailNotificacion(parsed);
+          await enviarEmailNotificacion({
+            ...parsed,
+            productos: productosArray,
+            precio_total: precioTotal,
+          });
         } catch (emailError) {
           console.error("Error enviando email:", emailError);
         }
