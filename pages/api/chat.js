@@ -167,6 +167,7 @@ ${listaProductos}
 
 INSTRUCCIONES PARA VENTAS:
 - Presenta únicamente los productos más relevantes según lo que busca el usuario.
+- Si el usuario pregunta por un producto que no está en el catálogo, indícale que contacte a través del formulario de contacto y brindales la información de contacto.
 - Incluye siempre el precio cuando presentes un producto.
 - Si el usuario confirma que quiere adquirir un producto (dice "sí", "lo quiero", "me lo llevo", "lo compro", "confirmo", "me interesa ese", etc.)
   pero AÚN NO ha proporcionado datos de contacto, responde en texto normal pidiéndole su nombre y un email o teléfono. Ejemplo:
@@ -182,7 +183,7 @@ INSTRUCCIONES PARA VENTAS:
   "telefono_usuario": "teléfono si lo proporcionó, o null"
 }
 - IMPORTANTE: El campo "mensaje" debe ser un texto natural y personalizado dirigido al cliente. Sustituye [nombre del producto] por el nombre real del producto.
-- Si el usuario pregunta por un producto que no está en el catálogo, indícale que contacte a través del formulario.`;
+`;
       }
     }
 
